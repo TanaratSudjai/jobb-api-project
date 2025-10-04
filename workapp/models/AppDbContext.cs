@@ -7,5 +7,6 @@ namespace workapp.Models
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
         public DbSet<User> Users { get; set; }   // 👈 เพิ่มตรงนี้
+        public DbSet<Job> Jobs { get; set; }
     }
 }
