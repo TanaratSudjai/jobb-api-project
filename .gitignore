@@ -1,0 +1,51 @@
+# Build outputs
+bin/
+obj/
+**/bin/
+**/obj/
+
+# User-specific & IDE files
+.vs/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# VS Code workspace (keep shared settings)
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# Rider / ReSharper
+_ReSharper*/
+*.DotSettings.user
+
+# Packages & caches
+packages/
+.nuget/
+*.nupkg
+*.snupkg
+
+# Logs & diagnostics
+*.log
+logs/
+TestResults/
+coverage/
+
+# Runtime artifacts
+*.pidb
+*.mdb
+*.pdb
+
+# Environment & secrets
+appsettings.*.local.json
+secrets.json
+.env
+.env.*
+
+# Operating system files
+.DS_Store
+Thumbs.db
+$RECYCLE.BIN/

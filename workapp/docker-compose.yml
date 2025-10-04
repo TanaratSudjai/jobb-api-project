@@ -1,0 +1,24 @@
+version: "3.9"
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword        # รหัสผ่าน root
+      MYSQL_DATABASE: myapp_db                 # ชื่อฐานข้อมูลเริ่มต้น
+      MYSQL_USER: myuser                       # ผู้ใช้ทั่วไป
+      MYSQL_PASSWORD: mypassword               # รหัสผ่านของผู้ใช้
+    ports:
+      - "3306:3306"                            # พอร์ต MySQL (host:container)
+    volumes:
+      - mysql_data:/var/lib/mysql              # เก็บข้อมูลให้ถาวร
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql # ถ้ามี script สร้าง table
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 10s
+      retries: 5
+
+volumes:
+  mysql_data:
