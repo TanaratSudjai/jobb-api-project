@@ -30,7 +30,7 @@ namespace workapp.Features.Auth
                 Name = dto.Name,
                 Email = dto.Email,
                 PasswordHash = HashPassword(dto.Password),
-                Role = dto.Role ?? "seeker"
+                Role = "normal"
             };
 
 
@@ -75,7 +75,7 @@ namespace workapp.Features.Auth
         public string Name { get; set; } = "";
         public string Email { get; set; } = "";
         public string Password { get; set; } = "";
-        public string Role { get; set; } = "seeker"; // 👈 เพิ่มตรงนี้
+        public string Role { get; set; } = "normal"; 
     }
 
 

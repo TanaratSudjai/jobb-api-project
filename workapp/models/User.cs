@@ -22,7 +22,7 @@ namespace workapp.Models
 
         [Required]
         [MaxLength(20)]
-        public string Role { get; set; } = "seeker"; // 👈 ค่าเริ่มต้นเป็นผู้หางาน
+        public string Role { get; set; } = "normal"; // 👈 ค่าเริ่มต้นเป็นผู้หางาน
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
