@@ -8,5 +8,7 @@ namespace workapp.Models
 
         public DbSet<User> Users { get; set; }   // 👈 เพิ่มตรงนี้
         public DbSet<Job> Jobs { get; set; }
+        public DbSet<JobContact> JobContacts { get; set; }
+        public DbSet<JobReport> JobReports { get; set; }
     }
 }

@@ -40,14 +40,18 @@
      ```bash
      dotnet ef migrations add CreateJobsTable --project workapp
      ```
+   - เวอร์ชันล่าสุดมีการเพิ่มตารางสำหรับบันทึกข้อมูลการติดต่อ (`JobContacts`) แนะนำให้รันคำสั่ง
+     ```bash
+     dotnet ef migrations add AddJobContacts --project workapp
+     ```
    - จากนั้นอัปเดตฐานข้อมูลให้ตรงกับ Migration ล่าสุด
      ```bash
      dotnet ef database update --project workapp
      ```
 4. **รันแอปพลิเคชัน**
    ```bash
-   dotnet run --project workapp
-   ```
+ dotnet run --project workapp
+  ```
    หรือให้คอมไพล์ใหม่อัตโนมัติเมื่อไฟล์เปลี่ยน
    ```bash
    dotnet watch --project workapp run
@@ -64,6 +68,27 @@
   ```
 - Token ที่สร้างมีอายุ 2 ชั่วโมง (แก้ไขได้ใน `AuthController.GenerateJwtToken`)
 - หากมีการหมุนคีย์ (`Jwt:Key`) หรือเปลี่ยน `Issuer/Audience` ให้ทำกับทั้ง API และฝั่ง Client
+
+## ส่วน Client (Next.js)
+- ต้องมี Node.js 18 ขึ้นไป (แนะนำให้ใช้ผ่าน [nvm](https://github.com/nvm-sh/nvm) เพื่อสลับเวอร์ชันได้ง่าย)
+- โค้ดอยู่ในโฟลเดอร์ `client` โดยใช้ Next.js + TypeScript + Tailwind CSS
+- ตั้งค่าและรันฝั่ง Client:
+  ```bash
+  cd client
+  cp .env.example .env.local  # ปรับค่า BASE URL ของ API ได้ตามต้องการ
+  npm install
+  npm run dev
+  ```
+- หน้าแรก (`src/app/page.tsx`) ดึงรายการงานที่อนุมัติแล้วจาก API (`/api/jobs`) และแสดงบน http://localhost:3000
+- มีหน้าสำหรับ **เข้าสู่ระบบ** (`/auth/login`) และ **สมัครสมาชิก** (`/auth/register`) โดยการสมัครสมาชิกจะสร้างผู้ใช้บทบาท `normal` เท่านั้นเพื่อความปลอดภัย ส่วนการเข้าสู่ระบบจะเรียก `POST /api/auth/login` และเก็บ token ใน `localStorage`
+- หลังเข้าสู่ระบบจะถูกนำไปหน้า **แดชบอร์ด** (`/dashboard`) เพื่อรวบรวมลิงก์การทำงานสำคัญ สำหรับแอดมินมีเมนูลัดไปยังการจัดการประกาศและรายงาน ส่วนผู้ใช้ทั่วไปมีลัดไปยังการค้นหางานและโพสต์งาน
+- ผู้ใช้ทุกคนสามารถ **โพสต์งาน** ได้ที่ `/jobs/post` (ไม่ต้องเข้าสู่ระบบ) เมื่อส่งแล้วระบบจะคืนลิงก์จัดการประกาศพร้อมโทเค็นในตัว
+- ผู้โพสต์สามารถแก้ไข/ปิด/ลบประกาศผ่านลิงก์จัดการได้ที่ `/jobs/manage/<token>` โดยลิงก์จะต่ออายุทุกครั้งที่มีการบันทึกข้อมูล
+- ผู้ดูแลระบบสามารถจัดการการอนุมัติงานได้ที่ `/admin/jobs` (ดึงข้อมูลโดยส่งเฮดเดอร์ `X-User-Role: admin`)
+- ผู้ดูแลระบบสามารถดูรายชื่อผู้ติดต่อของแต่ละงานที่ `/admin/jobs/[id]/contacts`
+- ผู้ดูแลระบบตรวจสอบรายงานประกาศได้ที่ `/admin/reports` พร้อมเปลี่ยนสถานะรายงานได้
+- ผู้ใช้ทั่วไปสามารถดูรายละเอียดงานตาม id พร้อมกรอกข้อมูลติดต่อกลับได้ที่ `/jobs/[id]`
+- หากต้องการปรับปรุง UI หรือสร้างหน้าตาใหม่ สามารถสร้างไฟล์ภายใต้ `src/app` หรือ components เพิ่มเติม และเรียกใช้ API ตัวเดิมได้ทันที
 
 ## API หลักที่มีให้ใช้งาน
 - **สมัครสมาชิก** – `POST /api/auth/register`  
@@ -82,6 +107,22 @@
   สำหรับแอดมินเท่านั้น ใช้เปลี่ยนค่า `isApproved`
 - **ลบงาน** – `DELETE /api/jobs/{id}`  
   การลบต้องเป็นแอดมิน
+- **โพสต์งานสาธารณะ** – `POST /api/jobs/public`  
+  ให้ทุกคนส่งประกาศใหม่ได้ (ต้องแนบ `posterEmail` และ `acceptTerms = true`) ระบบจะคืน `manageToken` เพื่อใช้แก้ไข/ปิด/ลบภายหลัง
+- **ดู/แก้ไข/ลบประกาศผ่านโทเค็น** – `GET|PUT|DELETE /api/jobs/manage/{token}`  
+  ใช้ลิงก์ที่ระบบส่งคืนหลังโพสต์งานเพื่อจัดการประกาศด้วยตัวเอง (ลิงก์หมดอายุใน 30 วันและต่ออายุเมื่อมีการบันทึก)
+- **ส่งข้อมูลติดต่อสำหรับงานที่อนุมัติ** – `POST /api/jobs/{id}/contacts`  
+  ผู้ใช้ทั่วไปส่ง `name`, `email`, `phone` (ถ้ามี), `message` (ถ้ามี) เพื่อฝากช่องทางติดต่อ
+- **ดูข้อมูลการติดต่อของงาน** – `GET /api/jobs/{id}/contacts`  
+  สำหรับแอดมินเท่านั้น ใช้ตรวจสอบผู้ที่สนใจงานดังกล่าว
+- **รายงานประกาศ** – `POST /api/jobs/{id}/reports`  
+  ผู้ใช้ทั่วไปแจ้งเหตุผลและรายละเอียดเพิ่มเติมเพื่อให้แอดมินตรวจสอบ
+- **ดูรายงานประกาศทั้งหมด** – `GET /api/jobs/reports`  
+  สำหรับแอดมินเพื่อดูรายการรายงานทั้งหมดในระบบ
+- **ดูรายงานตามงาน** – `GET /api/jobs/{id}/reports`  
+  สำหรับแอดมินดูรายงานของงานใดงานหนึ่ง
+- **ปรับสถานะรายงาน** – `PUT /api/jobs/{jobId}/reports/{reportId}/resolve`  
+  แอดมินใช้ปิดหรือเปิดรายงานอีกครั้งเพื่อจัดการสถานะการตรวจสอบ
 
 > หมายเหตุ: ขณะนี้ระบบแยกบทบาทการจัดการงานผ่านเฮดเดอร์ `X-User-Role` เพื่อความสะดวกในการทดสอบ หากมีการเพิ่ม Middleware ตรวจสอบ JWT + Role อย่างจริงจัง สามารถย้ายตรรกะตรวจสอบสิทธิ์จากคอนโทรลเลอร์มาใช้ `[Authorize(Roles="admin")]` ได้ทันที
 
@@ -99,4 +140,3 @@
 - [Entity Framework Core MySQL Provider (Pomelo)](https://github.com/PomeloFoundation/Pomelo.EntityFrameworkCore.MySql)
 - [EF Core Migrations Overview](https://learn.microsoft.com/ef/core/managing-schemas/migrations/)
 - [JWT Authentication in ASP.NET Core](https://learn.microsoft.com/aspnet/core/security/authentication/jwt)
-
