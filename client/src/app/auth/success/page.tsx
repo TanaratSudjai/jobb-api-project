@@ -42,18 +42,21 @@ export default function AuthSuccessPage() {
             <>
               <h2 className="text-lg font-semibold">สวัสดีผู้ดูแลระบบ</h2>
               <p className="mt-2 text-sm text-foreground/80">
-                ตอนนี้คุณสามารถจัดการประกาศงานทั้งหมดได้ รวมถึงการอนุมัติ/ปฏิเสธและลบประกาศ
-                อย่าลืมแนบ token ในคำขอ API ที่ต้องการสิทธิ์เพิ่มเติม
+                ตอนนี้คุณสามารถจัดการประกาศงานทั้งหมดได้ รวมถึงการอนุมัติ ปิด หรือซ่อนประกาศที่ไม่เหมาะสม
               </p>
               <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-foreground/70">
                 <li>
-                  ใช้ header <code>X-User-Role: admin</code> หรือปรับ backend ให้ตรวจ JWT เพื่อยืนยันสิทธิ์
+                  เริ่มจัดการประกาศและดูข้อมูลติดต่อจากหน้า{" "}
+                  <Link href="/admin/jobs" className="underline-offset-2 hover:underline">
+                    จัดการประกาศงาน
+                  </Link>
                 </li>
                 <li>
-                  ทดลองเรียก <code>PUT /api/jobs/{'{id}'}/status</code> เพื่ออนุมัติประกาศงาน
-                </li>
-                <li>
-                  ตรวจสอบรายงานประกาศที่ <Link href="/admin/reports" className="underline-offset-2 hover:underline">/admin/reports</Link> เมื่อมีผู้ใช้แจ้งเข้ามา
+                  ตรวจสอบรายงานประกาศที่{" "}
+                  <Link href="/admin/reports" className="underline-offset-2 hover:underline">
+                    ศูนย์รายงาน
+                  </Link>{" "}
+                  เมื่อมีผู้ใช้แจ้งเข้ามา
                 </li>
               </ul>
             </>
@@ -74,10 +77,7 @@ export default function AuthSuccessPage() {
         </section>
 
         <section className="space-y-3 rounded-lg border border-foreground/10 bg-foreground/5 px-4 py-5 text-sm text-foreground/80">
-          <p>
-            Token และข้อมูลผู้ใช้ถูกเก็บไว้ใน <code>localStorage</code> สามารถนำไปใช้กับ
-            API อื่น ๆ ได้ทันที
-          </p>
+          <p>ระบบบันทึกสถานะการเข้าสู่ระบบไว้เพื่อให้คุณใช้งานบริการต่าง ๆ ได้อย่างต่อเนื่อง</p>
           <div className="flex flex-wrap gap-3">
             <Link
               href="/dashboard"

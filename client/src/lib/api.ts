@@ -14,23 +14,41 @@ export type ApiResult<T> =
 type JsonRequestOptions = {
   headers?: HeadersInit;
   method?: "POST" | "PUT" | "PATCH" | "DELETE";
+  body?: unknown;
 };
 
 async function requestJson<T>(
   path: string,
-  body: unknown,
+  body: unknown | undefined,
   options: JsonRequestOptions,
 ): Promise<ApiResult<T>> {
   try {
-    const response = await fetch(`${API_BASE_URL}${path}`, {
+    const requestInit: RequestInit = {
       method: options.method ?? "POST",
       headers: {
         "Content-Type": "application/json",
         ...options.headers,
       },
-      body: JSON.stringify(body),
       cache: "no-store",
-    });
+    };
+
+    const payloadToSend =
+      options.body !== undefined ? options.body : body ?? undefined;
+
+    if (payloadToSend !== undefined) {
+      requestInit.body = JSON.stringify(payloadToSend);
+    } else {
+      // If no body, remove default content-type to avoid issues with some servers
+      if (requestInit.headers instanceof Headers) {
+        requestInit.headers.delete("Content-Type");
+      } else if (requestInit.headers) {
+        const headers = { ...requestInit.headers };
+        delete (headers as Record<string, string>)["Content-Type"];
+        requestInit.headers = headers;
+      }
+    }
+
+    const response = await fetch(`${API_BASE_URL}${path}`, requestInit);
 
     const payload = await response.json().catch(() => null);
 
@@ -68,4 +86,14 @@ export function putJson<T>(
   options: Omit<JsonRequestOptions, "method"> = {},
 ) {
   return requestJson<T>(path, body, { ...options, method: "PUT" });
+}
+
+export function deleteJson<T>(
+  path: string,
+  options: Omit<JsonRequestOptions, "method" | "body"> & { body?: unknown } = {},
+) {
+  return requestJson<T>(path, options.body, {
+    ...options,
+    method: "DELETE",
+  });
 }

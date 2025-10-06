@@ -7,7 +7,11 @@ type Job = {
   description: string;
   company: string;
   location: string;
+  jobType: string;
+  budgetMin: number | null;
+  budgetMax: number | null;
   isApproved: boolean;
+  isClosed: boolean;
   createdAt: string;
 };
 
@@ -28,7 +32,7 @@ async function fetchJobs(): Promise<{
     }
 
     const data = (await response.json()) as Job[];
-    const approvedJobs = data.filter((job) => job.isApproved);
+    const approvedJobs = data.filter((job) => job.isApproved && !job.isClosed);
 
     return { jobs: approvedJobs };
   } catch (error) {
@@ -51,9 +55,7 @@ export default async function Home() {
             งานที่เปิดรับสมัคร
           </h1>
           <p className="mt-2 text-sm text-foreground/70">
-            ข้อมูลดึงจาก API ที่พัฒนาไว้ในโฟลเดอร์ <code>workapp</code>. รัน{" "}
-            <code>dotnet run --project workapp</code> พร้อมกับ{" "}
-            <code>npm run dev</code> เพื่อดูข้อมูลล่าสุด
+            คัดสรรตำแหน่งงานจากบริษัทพันธมิตร อัปเดตใหม่อยู่เสมอเพื่อให้คุณไม่พลาดโอกาสดี ๆ
           </p>
           <div className="mt-4 flex flex-wrap gap-3 text-sm">
             <Link
@@ -68,6 +70,12 @@ export default async function Home() {
             >
               สมัครสมาชิกใหม่
             </Link>
+            <Link
+              href="/jobs/post"
+              className="rounded-md bg-foreground px-3 py-2 font-medium text-background transition hover:opacity-90"
+            >
+              โพสต์ประกาศงาน
+            </Link>
           </div>
         </header>
 
@@ -80,8 +88,7 @@ export default async function Home() {
         <section className="grid gap-4 md:grid-cols-2">
           {jobs.length === 0 ? (
             <p className="rounded-md border border-dashed border-foreground/20 p-6 text-center text-sm text-foreground/70">
-              ยังไม่มีงานที่เปิดรับ หรือข้อมูลยังไม่ถูกอนุมัติ ลองเพิ่มข้อมูลผ่าน
-              API แล้วโหลดหน้าใหม่อีกครั้ง
+              ขณะนี้ยังไม่มีงานที่เปิดรับในระบบ โปรดลองกลับมาใหม่หรือสมัครรับข่าวสารกับเรา
             </p>
           ) : (
             jobs.map((job) => (
@@ -96,6 +103,25 @@ export default async function Home() {
                   <p className="mt-1 text-sm font-medium text-foreground/70">
                     {job.company} • {job.location}
                   </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-foreground/60">
+                    {job.jobType ? (
+                      <span className="rounded-full border border-foreground/15 px-2 py-1">
+                        {job.jobType}
+                      </span>
+                    ) : null}
+                    {job.budgetMin || job.budgetMax ? (
+                      <span>
+                        งบประมาณ{" "}
+                        {job.budgetMin
+                          ? job.budgetMax && job.budgetMax !== job.budgetMin
+                            ? `${job.budgetMin.toLocaleString("th-TH")} - ${job.budgetMax?.toLocaleString("th-TH")} บาท/เดือน`
+                            : `${job.budgetMin.toLocaleString("th-TH")} บาท/เดือน`
+                          : job.budgetMax
+                            ? `สูงสุด ${job.budgetMax.toLocaleString("th-TH")} บาท/เดือน`
+                            : ""}
+                      </span>
+                    ) : null}
+                  </div>
                   <p className="mt-3 text-sm leading-relaxed text-foreground/80">
                     {job.description}
                   </p>

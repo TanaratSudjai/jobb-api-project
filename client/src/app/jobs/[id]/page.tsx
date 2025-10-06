@@ -10,7 +10,11 @@ type Job = {
   description: string;
   company: string;
   location: string;
+  jobType: string;
+  budgetMin: number | null;
+  budgetMax: number | null;
   isApproved: boolean;
+  isClosed: boolean;
   createdAt: string;
   updatedAt?: string | null;
 };
@@ -39,7 +43,7 @@ export default async function JobDetailPage({ params }: Props) {
   const { id } = params;
   const job = await fetchJob(id);
 
-  if (!job || !job.isApproved) {
+  if (!job || !job.isApproved || job.isClosed) {
     notFound();
   }
 
@@ -57,6 +61,25 @@ export default async function JobDetailPage({ params }: Props) {
           <p className="text-sm text-foreground/70">
             {job.company} • {job.location}
           </p>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-foreground/60">
+            {job.jobType ? (
+              <span className="rounded-full border border-foreground/15 px-2 py-1">
+                {job.jobType}
+              </span>
+            ) : null}
+            {job.budgetMin || job.budgetMax ? (
+              <span>
+                งบประมาณ{" "}
+                {job.budgetMin
+                  ? job.budgetMax && job.budgetMax !== job.budgetMin
+                    ? `${job.budgetMin.toLocaleString("th-TH")} - ${job.budgetMax?.toLocaleString("th-TH")} บาท/เดือน`
+                    : `${job.budgetMin.toLocaleString("th-TH")} บาท/เดือน`
+                  : job.budgetMax
+                    ? `สูงสุด ${job.budgetMax.toLocaleString("th-TH")} บาท/เดือน`
+                    : ""}
+              </span>
+            ) : null}
+          </div>
           <p className="text-xs text-foreground/60">
             อัปเดตล่าสุด{" "}
             {new Date(job.updatedAt ?? job.createdAt).toLocaleString("th-TH")}

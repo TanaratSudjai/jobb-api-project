@@ -54,6 +54,7 @@ export function TopNav() {
       return;
     }
     saveAuth();
+    window.location.href = "/";
   };
 
   const isAdmin =
@@ -63,42 +64,50 @@ export function TopNav() {
   return (
     <header className="border-b border-foreground/10 bg-foreground/5">
       <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-4 text-sm text-foreground">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Link href="/" className="text-base font-semibold">
             Jobb Service
           </Link>
-          {navUser.status === "authenticated" ? (
-            <nav className="flex items-center gap-3 text-xs sm:text-sm">
-              <Link
-                href="/dashboard"
-                className="rounded-md px-2 py-1 hover:bg-foreground/10"
-              >
-                แดชบอร์ด
-              </Link>
-              <Link
-                href="/"
-                className="rounded-md px-2 py-1 hover:bg-foreground/10"
-              >
-                ค้นหางาน
-              </Link>
-              {isAdmin ? (
-                <>
-                  <Link
-                    href="/admin/jobs"
-                    className="rounded-md px-2 py-1 hover:bg-foreground/10"
-                  >
-                    จัดการประกาศ
-                  </Link>
-                  <Link
-                    href="/admin/reports"
-                    className="rounded-md px-2 py-1 hover:bg-foreground/10"
-                  >
-                    รายงาน
-                  </Link>
-                </>
-              ) : null}
-            </nav>
-          ) : null}
+          <nav className="flex items-center gap-2 text-xs sm:text-sm">
+            <Link
+              href="/"
+              className="rounded-md px-2 py-1 hover:bg-foreground/10"
+            >
+              ค้นหางาน
+            </Link>
+            <Link
+              href="/jobs/post"
+              className="rounded-md px-2 py-1 hover:bg-foreground/10"
+            >
+              โพสต์งาน
+            </Link>
+            {navUser.status === "authenticated" ? (
+              <>
+                <Link
+                  href="/dashboard"
+                  className="rounded-md px-2 py-1 hover:bg-foreground/10"
+                >
+                  แดชบอร์ด
+                </Link>
+                {isAdmin ? (
+                  <>
+                    <Link
+                      href="/admin/jobs"
+                      className="rounded-md px-2 py-1 hover:bg-foreground/10"
+                    >
+                      จัดการประกาศ
+                    </Link>
+                    <Link
+                      href="/admin/reports"
+                      className="rounded-md px-2 py-1 hover:bg-foreground/10"
+                    >
+                      รายงาน
+                    </Link>
+                  </>
+                ) : null}
+              </>
+            ) : null}
+          </nav>
         </div>
 
         <div className="flex items-center gap-3 text-xs sm:text-sm">

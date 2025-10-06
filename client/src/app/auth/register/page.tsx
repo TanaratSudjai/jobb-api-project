@@ -68,7 +68,7 @@ export default function RegisterPage() {
         <header className="space-y-2 text-center">
           <h1 className="text-3xl font-semibold">สมัครสมาชิกใหม่</h1>
           <p className="text-sm text-foreground/70">
-            ข้อมูลจะถูกบันทึกในฐานข้อมูลเดียวกับ API (`workapp`)
+            สร้างบัญชีเพื่อบันทึกข้อมูลการติดต่อ และติดตามสถานะประกาศงานที่คุณสนใจ
           </p>
         </header>
 

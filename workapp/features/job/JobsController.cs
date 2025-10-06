@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using workapp.Models;
@@ -19,6 +20,26 @@ namespace workapp.Features.Jobs
             _context = context;
         }
 
+        private static string GenerateManageTokenRaw()
+        {
+            var bytes = RandomNumberGenerator.GetBytes(32);
+            return Convert.ToBase64String(bytes)
+                .Replace("+", string.Empty)
+                .Replace("/", string.Empty)
+                .Replace("=", string.Empty);
+        }
+
+        private async Task<string> GenerateUniqueManageTokenAsync()
+        {
+            string token;
+            do
+            {
+                token = GenerateManageTokenRaw();
+            } while (await _context.Jobs.AnyAsync(job => job.ManageToken == token));
+
+            return token;
+        }
+
         private static bool IsAdmin(string? role) =>
             !string.IsNullOrWhiteSpace(role) &&
             string.Equals(role, AdminRole, StringComparison.OrdinalIgnoreCase);
@@ -31,7 +52,7 @@ namespace workapp.Features.Jobs
 
             if (!isAdmin)
             {
-                jobsQuery = jobsQuery.Where(job => job.IsApproved);
+                jobsQuery = jobsQuery.Where(job => job.IsApproved && !job.IsClosed);
             }
 
             var jobs = await jobsQuery
@@ -50,7 +71,7 @@ namespace workapp.Features.Jobs
                 return NotFound();
             }
 
-            if (!IsAdmin(role) && !job.IsApproved)
+            if (!IsAdmin(role) && (!job.IsApproved || job.IsClosed))
             {
                 return NotFound();
             }
@@ -61,12 +82,22 @@ namespace workapp.Features.Jobs
         [HttpPost]
         public async Task<ActionResult<Job>> CreateJob([FromBody] JobCreateDto dto, [FromHeader(Name = RoleHeaderName)] string? role = null)
         {
+            var manageToken = await GenerateUniqueManageTokenAsync();
+
             var job = new Job
             {
                 Title = dto.Title,
                 Description = dto.Description,
                 Company = dto.Company ?? string.Empty,
                 Location = dto.Location ?? string.Empty,
+                JobType = dto.JobType ?? string.Empty,
+                BudgetMin = dto.BudgetMin,
+                BudgetMax = dto.BudgetMax,
+                PosterName = dto.PosterName ?? string.Empty,
+                PosterEmail = dto.PosterEmail ?? string.Empty,
+                ManageToken = manageToken,
+                ManageTokenExpiresAt = DateTime.UtcNow.AddDays(30),
+                IsClosed = dto.IsClosed ?? false,
                 IsApproved = IsAdmin(role) && dto.IsApproved == true,
                 CreatedAt = DateTime.UtcNow
             };
@@ -90,6 +121,12 @@ namespace workapp.Features.Jobs
             job.Description = dto.Description ?? job.Description;
             job.Company = dto.Company ?? job.Company;
             job.Location = dto.Location ?? job.Location;
+            job.JobType = dto.JobType ?? job.JobType;
+            job.BudgetMin = dto.BudgetMin ?? job.BudgetMin;
+            job.BudgetMax = dto.BudgetMax ?? job.BudgetMax;
+            job.PosterName = dto.PosterName ?? job.PosterName;
+            job.PosterEmail = dto.PosterEmail ?? job.PosterEmail;
+            job.IsClosed = dto.IsClosed ?? job.IsClosed;
 
             if (dto.IsApproved.HasValue)
             {
@@ -148,6 +185,98 @@ namespace workapp.Features.Jobs
             return NoContent();
         }
 
+        [HttpPost("public")]
+        public async Task<IActionResult> CreateJobPublic([FromBody] JobPublicCreateDto dto)
+        {
+            if (!dto.AcceptTerms)
+            {
+                return BadRequest(new { message = "ต้องยอมรับเงื่อนไขการใช้งานก่อนส่งประกาศ" });
+            }
+
+            var manageToken = await GenerateUniqueManageTokenAsync();
+
+            var job = new Job
+            {
+                Title = dto.Title,
+                Description = dto.Description,
+                Company = dto.Company ?? string.Empty,
+                Location = dto.Location ?? string.Empty,
+                JobType = dto.JobType ?? string.Empty,
+                BudgetMin = dto.BudgetMin,
+                BudgetMax = dto.BudgetMax,
+                PosterName = dto.PosterName ?? string.Empty,
+                PosterEmail = dto.PosterEmail,
+                ManageToken = manageToken,
+                ManageTokenExpiresAt = DateTime.UtcNow.AddDays(30),
+                IsApproved = false,
+                IsClosed = false,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Jobs.Add(job);
+            await _context.SaveChangesAsync();
+
+            return Ok(new JobPublicResponseDto
+            {
+                Message = "ส่งประกาศงานเรียบร้อย ระบบจะตรวจสอบและแจ้งผลทางอีเมล",
+                JobId = job.JobId,
+                ManageToken = manageToken,
+                ManageTokenExpiresAt = job.ManageTokenExpiresAt
+            });
+        }
+
+        [HttpGet("manage/{token}")]
+        public async Task<ActionResult<JobManageDto>> GetJobByToken(string token)
+        {
+            var job = await _context.Jobs.AsNoTracking().FirstOrDefaultAsync(job => job.ManageToken == token);
+            if (job == null || job.ManageTokenExpiresAt < DateTime.UtcNow)
+            {
+                return NotFound(new { message = "ไม่พบลิงก์จัดการหรืออาจหมดอายุแล้ว" });
+            }
+
+            return Ok(JobManageDto.FromEntity(job));
+        }
+
+        [HttpPut("manage/{token}")]
+        public async Task<IActionResult> UpdateJobByToken(string token, [FromBody] JobManageUpdateDto dto)
+        {
+            var job = await _context.Jobs.FirstOrDefaultAsync(job => job.ManageToken == token);
+            if (job == null || job.ManageTokenExpiresAt < DateTime.UtcNow)
+            {
+                return NotFound(new { message = "ไม่พบลิงก์จัดการหรืออาจหมดอายุแล้ว" });
+            }
+
+            job.Title = dto.Title ?? job.Title;
+            job.Description = dto.Description ?? job.Description;
+            job.Company = dto.Company ?? job.Company;
+            job.Location = dto.Location ?? job.Location;
+            job.JobType = dto.JobType ?? job.JobType;
+            job.BudgetMin = dto.BudgetMin ?? job.BudgetMin;
+            job.BudgetMax = dto.BudgetMax ?? job.BudgetMax;
+            job.IsClosed = dto.IsClosed ?? job.IsClosed;
+            job.ManageTokenExpiresAt = DateTime.UtcNow.AddDays(30);
+            job.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(JobManageDto.FromEntity(job));
+        }
+
+        [HttpDelete("manage/{token}")]
+        public async Task<IActionResult> DeleteJobByToken(string token)
+        {
+            var job = await _context.Jobs.FirstOrDefaultAsync(job => job.ManageToken == token);
+            if (job == null || job.ManageTokenExpiresAt < DateTime.UtcNow)
+            {
+                return NotFound(new { message = "ไม่พบลิงก์จัดการหรืออาจหมดอายุแล้ว" });
+            }
+
+            _context.Jobs.Remove(job);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "ลบประกาศงานเรียบร้อยแล้ว" });
+        }
+
         [HttpGet("{id:int}/contacts")]
         public async Task<ActionResult<IEnumerable<JobContact>>> GetJobContacts(int id, [FromHeader(Name = RoleHeaderName)] string? role = null)
         {
@@ -180,9 +309,9 @@ namespace workapp.Features.Jobs
                 return NotFound(new { message = "ไม่พบประกาศงานที่ต้องการติดต่อ" });
             }
 
-            if (!job.IsApproved)
+            if (!job.IsApproved || job.IsClosed)
             {
-                return BadRequest(new { message = "ประกาศงานนี้ยังไม่เปิดให้ติดต่อ" });
+                return BadRequest(new { message = "ประกาศงานนี้ไม่เปิดรับการติดต่อในขณะนี้" });
             }
 
             var contact = new JobContact
@@ -271,6 +400,11 @@ namespace workapp.Features.Jobs
                 return NotFound(new { message = "ไม่พบประกาศงานที่ต้องการรายงาน" });
             }
 
+            if (job.IsClosed)
+            {
+                return BadRequest(new { message = "ประกาศงานนี้ถูกปิดแล้ว" });
+            }
+
             var report = new JobReport
             {
                 JobId = job.JobId,
@@ -334,7 +468,21 @@ namespace workapp.Features.Jobs
         [MaxLength(150)]
         public string? Location { get; set; }
 
+        [MaxLength(100)]
+        public string? JobType { get; set; }
+
+        public decimal? BudgetMin { get; set; }
+        public decimal? BudgetMax { get; set; }
+
+        [MaxLength(200)]
+        public string? PosterName { get; set; }
+
+        [MaxLength(200)]
+        [EmailAddress]
+        public string? PosterEmail { get; set; }
+
         public bool? IsApproved { get; set; }
+        public bool? IsClosed { get; set; }
     }
 
     public class JobUpdateDto
@@ -349,6 +497,20 @@ namespace workapp.Features.Jobs
         [MaxLength(150)]
         public string? Location { get; set; }
 
+        [MaxLength(100)]
+        public string? JobType { get; set; }
+
+        public decimal? BudgetMin { get; set; }
+        public decimal? BudgetMax { get; set; }
+
+        [MaxLength(200)]
+        public string? PosterName { get; set; }
+
+        [MaxLength(200)]
+        [EmailAddress]
+        public string? PosterEmail { get; set; }
+
+        public bool? IsClosed { get; set; }
         public bool? IsApproved { get; set; }
     }
 
@@ -374,6 +536,99 @@ namespace workapp.Features.Jobs
 
         [MaxLength(500)]
         public string? Message { get; set; }
+    }
+
+    public class JobPublicCreateDto
+    {
+        [Required]
+        [MaxLength(200)]
+        public string Title { get; set; } = string.Empty;
+
+        [Required]
+        public string Description { get; set; } = string.Empty;
+
+        [MaxLength(150)]
+        public string? Company { get; set; }
+
+        [MaxLength(150)]
+        public string? Location { get; set; }
+
+        [MaxLength(100)]
+        public string? JobType { get; set; }
+
+        public decimal? BudgetMin { get; set; }
+        public decimal? BudgetMax { get; set; }
+
+        [Required]
+        [MaxLength(200)]
+        [EmailAddress]
+        public string PosterEmail { get; set; } = string.Empty;
+
+        [MaxLength(200)]
+        public string? PosterName { get; set; }
+
+        public bool AcceptTerms { get; set; }
+    }
+
+    public class JobPublicResponseDto
+    {
+        public string Message { get; set; } = string.Empty;
+        public int JobId { get; set; }
+        public string ManageToken { get; set; } = string.Empty;
+        public DateTime ManageTokenExpiresAt { get; set; }
+    }
+
+    public class JobManageUpdateDto
+    {
+        [MaxLength(200)]
+        public string? Title { get; set; }
+        public string? Description { get; set; }
+
+        [MaxLength(150)]
+        public string? Company { get; set; }
+
+        [MaxLength(150)]
+        public string? Location { get; set; }
+
+        [MaxLength(100)]
+        public string? JobType { get; set; }
+
+        public decimal? BudgetMin { get; set; }
+        public decimal? BudgetMax { get; set; }
+
+        public bool? IsClosed { get; set; }
+    }
+
+    public class JobManageDto
+    {
+        public int JobId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string Company { get; set; } = string.Empty;
+        public string Location { get; set; } = string.Empty;
+        public string JobType { get; set; } = string.Empty;
+        public decimal? BudgetMin { get; set; }
+        public decimal? BudgetMax { get; set; }
+        public bool IsApproved { get; set; }
+        public bool IsClosed { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+
+        public static JobManageDto FromEntity(Job job) => new()
+        {
+            JobId = job.JobId,
+            Title = job.Title,
+            Description = job.Description,
+            Company = job.Company,
+            Location = job.Location,
+            JobType = job.JobType,
+            BudgetMin = job.BudgetMin,
+            BudgetMax = job.BudgetMax,
+            IsApproved = job.IsApproved,
+            IsClosed = job.IsClosed,
+            CreatedAt = job.CreatedAt,
+            UpdatedAt = job.UpdatedAt
+        };
     }
 
     public class JobReportCreateDto

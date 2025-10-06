@@ -68,7 +68,7 @@ export default function LoginPage() {
         <header className="space-y-2 text-center">
           <h1 className="text-3xl font-semibold">เข้าสู่ระบบ</h1>
           <p className="text-sm text-foreground/70">
-            ใช้บัญชีที่สมัครผ่าน API ที่โฟลเดอร์ <code>workapp</code>
+            เข้าสู่ระบบเพื่อจัดการโปรไฟล์และติดตามประกาศงานที่คุณสนใจ
           </p>
         </header>
 
@@ -147,7 +147,7 @@ export default function LoginPage() {
           </Link>
         </p>
         <p className="text-center text-xs text-foreground/60">
-          ระบบจะเก็บ token ไว้ใน Local Storage เพื่อนำไปใช้กับ API อื่น ๆ.
+          ระบบจะบันทึกสถานะการใช้งานไว้ เพื่อให้คุณไม่ต้องเข้าสู่ระบบซ้ำระหว่างใช้งาน
         </p>
       </div>
     </div>

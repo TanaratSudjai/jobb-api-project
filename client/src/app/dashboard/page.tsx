@@ -16,6 +16,12 @@ type ViewState =
 
 const normalActions = [
   {
+    title: "โพสต์ประกาศงานใหม่",
+    description:
+      "ฝากรายละเอียดงานเพื่อให้ทีมงานตรวจสอบและเผยแพร่ต่อผู้หางาน",
+    href: "/jobs/post",
+  },
+  {
     title: "ดูประกาศงานทั้งหมด",
     description: "สำรวจงานที่เปิดรับและกรองตามความสนใจของคุณ",
     href: "/",
@@ -28,6 +34,11 @@ const normalActions = [
 ];
 
 const adminActions = [
+  {
+    title: "โพสต์ประกาศงานใหม่",
+    description: "เพิ่มตำแหน่งใหม่เข้าสู่ระบบได้อย่างรวดเร็ว",
+    href: "/jobs/post",
+  },
   {
     title: "จัดการประกาศงาน",
     description: "ตรวจอนุมัติ ปิด หรือเปิดประกาศงาน พร้อมดูคำติดต่อ",
@@ -131,28 +142,35 @@ export default function DashboardPage() {
         </section>
 
         {state.role === "admin" ? (
-          <section className="rounded-md border border-foreground/10 bg-foreground/5 px-4 py-3 text-sm text-foreground/70">
-            <p>
-              หากพบประกาศที่ต้องซ่อนหรือลบ กรุณาไปที่{" "}
-              <Link
-                href="/admin/jobs"
-                className="underline-offset-2 hover:underline"
-              >
-                จัดการประกาศ
-              </Link>{" "}
-              และใช้คำสั่งปิดประกาศ รวมถึงตรวจสอบข้อมูลติดต่อจากผู้สมัคร
-            </p>
-          </section>
-        ) : (
-          <section className="rounded-md border border-foreground/10 bg-foreground/5 px-4 py-3 text-sm text-foreground/70">
-            <p>
-              หากพบประกาศผิดปกติ สามารถเข้าไปที่หน้ารายละเอียดประกาศแล้วกด
-              “รายงานประกาศไม่เหมาะสม” เพื่อแจ้งให้ผู้ดูแลตรวจสอบได้ทันที
-            </p>
-          </section>
-        )}
+        <section className="rounded-md border border-foreground/10 bg-foreground/5 px-4 py-3 text-sm text-foreground/70">
+          <p>
+            หากพบประกาศที่ต้องซ่อนหรือลบ กรุณาไปที่{" "}
+            <Link
+              href="/admin/jobs"
+              className="underline-offset-2 hover:underline"
+            >
+              จัดการประกาศ
+            </Link>{" "}
+            และใช้คำสั่งปิดประกาศ รวมถึงตรวจสอบข้อมูลติดต่อจากผู้สมัคร
+          </p>
+          <p className="mt-2">
+            เมื่ออนุมัติประกาศที่โพสต์ผ่านฟอร์มสาธารณะ ผู้โพสต์จะได้รับลิงก์จัดการด้วยโทเค็น
+            หากต้องการช่วยแก้ไข สามารถขอให้ผู้โพสต์ส่งลิงก์ดังกล่าวเพื่อตรวจสอบร่วมกันได้
+          </p>
+        </section>
+      ) : (
+        <section className="rounded-md border border-foreground/10 bg-foreground/5 px-4 py-3 text-sm text-foreground/70">
+          <p>
+            หากพบประกาศผิดปกติ สามารถเข้าไปที่หน้ารายละเอียดประกาศแล้วกด
+            “รายงานประกาศไม่เหมาะสม” เพื่อแจ้งให้ผู้ดูแลตรวจสอบได้ทันที
+          </p>
+          <p className="mt-2">
+            ถ้าคุณโพสต์งานผ่านฟอร์ม ระบบจะส่งลิงก์สำหรับแก้ไข/ปิด/ลบประกาศไปให้ทันที
+            เก็บลิงก์นั้นไว้ให้ดีเพื่อใช้จัดการประกาศของคุณในอนาคต
+          </p>
+        </section>
+      )}
       </div>
     </div>
   );
 }
-
