@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace workapp.Models
@@ -25,5 +26,8 @@ namespace workapp.Models
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
+
+        public ICollection<JobContact> Contacts { get; set; } = new List<JobContact>();
+        public ICollection<JobReport> Reports { get; set; } = new List<JobReport>();
     }
 }

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Linq;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using workapp.Models;
@@ -146,6 +147,176 @@ namespace workapp.Features.Jobs
 
             return NoContent();
         }
+
+        [HttpGet("{id:int}/contacts")]
+        public async Task<ActionResult<IEnumerable<JobContact>>> GetJobContacts(int id, [FromHeader(Name = RoleHeaderName)] string? role = null)
+        {
+            if (!IsAdmin(role))
+            {
+                return Forbid();
+            }
+
+            var jobExists = await _context.Jobs.AnyAsync(job => job.JobId == id);
+            if (!jobExists)
+            {
+                return NotFound();
+            }
+
+            var contacts = await _context.JobContacts
+                .AsNoTracking()
+                .Where(contact => contact.JobId == id)
+                .OrderByDescending(contact => contact.CreatedAt)
+                .ToListAsync();
+
+            return Ok(contacts);
+        }
+
+        [HttpPost("{id:int}/contacts")]
+        public async Task<IActionResult> CreateJobContact(int id, [FromBody] JobContactCreateDto dto)
+        {
+            var job = await _context.Jobs.AsNoTracking().FirstOrDefaultAsync(job => job.JobId == id);
+            if (job == null)
+            {
+                return NotFound(new { message = "ไม่พบประกาศงานที่ต้องการติดต่อ" });
+            }
+
+            if (!job.IsApproved)
+            {
+                return BadRequest(new { message = "ประกาศงานนี้ยังไม่เปิดให้ติดต่อ" });
+            }
+
+            var contact = new JobContact
+            {
+                JobId = job.JobId,
+                Name = dto.Name,
+                Email = dto.Email,
+                Phone = dto.Phone,
+                Message = dto.Message,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.JobContacts.Add(contact);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "ส่งคำขอติดต่อเรียบร้อยแล้ว",
+                contact.JobContactId,
+                contact.JobId
+            });
+        }
+
+        [HttpGet("{id:int}/reports")]
+        public async Task<ActionResult<IEnumerable<JobReport>>> GetJobReports(int id, [FromHeader(Name = RoleHeaderName)] string? role = null)
+        {
+            if (!IsAdmin(role))
+            {
+                return Forbid();
+            }
+
+            var jobExists = await _context.Jobs.AnyAsync(job => job.JobId == id);
+            if (!jobExists)
+            {
+                return NotFound();
+            }
+
+            var reports = await _context.JobReports
+                .AsNoTracking()
+                .Where(report => report.JobId == id)
+                .OrderBy(report => report.IsResolved)
+                .ThenByDescending(report => report.CreatedAt)
+                .ToListAsync();
+
+            return Ok(reports);
+        }
+
+        [HttpGet("reports")]
+        public async Task<ActionResult<IEnumerable<JobReportSummaryDto>>> GetAllJobReports([FromHeader(Name = RoleHeaderName)] string? role = null)
+        {
+            if (!IsAdmin(role))
+            {
+                return Forbid();
+            }
+
+            var reports = await _context.JobReports
+                .AsNoTracking()
+                .Include(report => report.Job)
+                .OrderBy(report => report.IsResolved)
+                .ThenByDescending(report => report.CreatedAt)
+                .Select(report => new JobReportSummaryDto
+                {
+                    JobReportId = report.JobReportId,
+                    JobId = report.JobId,
+                    JobTitle = report.Job != null ? report.Job.Title : string.Empty,
+                    JobCompany = report.Job != null ? report.Job.Company : string.Empty,
+                    ReporterEmail = report.ReporterEmail,
+                    ReporterName = report.ReporterName,
+                    Reason = report.Reason,
+                    Description = report.Description,
+                    IsResolved = report.IsResolved,
+                    CreatedAt = report.CreatedAt,
+                    ResolvedAt = report.ResolvedAt
+                })
+                .ToListAsync();
+
+            return Ok(reports);
+        }
+
+        [HttpPost("{id:int}/reports")]
+        public async Task<IActionResult> CreateJobReport(int id, [FromBody] JobReportCreateDto dto)
+        {
+            var job = await _context.Jobs.AsNoTracking().FirstOrDefaultAsync(job => job.JobId == id);
+            if (job == null || !job.IsApproved)
+            {
+                return NotFound(new { message = "ไม่พบประกาศงานที่ต้องการรายงาน" });
+            }
+
+            var report = new JobReport
+            {
+                JobId = job.JobId,
+                ReporterName = dto.Name ?? string.Empty,
+                ReporterEmail = dto.Email,
+                Reason = dto.Reason,
+                Description = dto.Description,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.JobReports.Add(report);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "ส่งรายงานประกาศงานสำเร็จ",
+                report.JobReportId,
+                report.JobId
+            });
+        }
+
+        [HttpPut("{jobId:int}/reports/{reportId:int}/resolve")]
+        public async Task<IActionResult> ResolveJobReport(int jobId, int reportId, [FromBody] JobReportResolveDto dto, [FromHeader(Name = RoleHeaderName)] string? role = null)
+        {
+            if (!IsAdmin(role))
+            {
+                return Forbid();
+            }
+
+            var report = await _context.JobReports.FirstOrDefaultAsync(report => report.JobId == jobId && report.JobReportId == reportId);
+            if (report == null)
+            {
+                return NotFound(new { message = "ไม่พบรายงานดังกล่าว" });
+            }
+
+            report.IsResolved = dto.IsResolved;
+            report.ResolvedAt = dto.IsResolved ? DateTime.UtcNow : null;
+
+            await _context.SaveChangesAsync();
+            return Ok(new
+            {
+                message = dto.IsResolved ? "ปิดรายงานเรียบร้อย" : "เปิดรายงานอีกครั้ง",
+                report.JobReportId,
+                report.IsResolved
+            });
+        }
     }
 
     public class JobCreateDto
@@ -185,5 +356,62 @@ namespace workapp.Features.Jobs
     {
         [Required]
         public bool IsApproved { get; set; }
+    }
+
+    public class JobContactCreateDto
+    {
+        [Required]
+        [MaxLength(150)]
+        public string Name { get; set; } = string.Empty;
+
+        [Required]
+        [MaxLength(200)]
+        [EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [MaxLength(30)]
+        public string? Phone { get; set; }
+
+        [MaxLength(500)]
+        public string? Message { get; set; }
+    }
+
+    public class JobReportCreateDto
+    {
+        [Required]
+        [MaxLength(200)]
+        [EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [MaxLength(150)]
+        public string? Name { get; set; }
+
+        [Required]
+        [MaxLength(150)]
+        public string Reason { get; set; } = string.Empty;
+
+        [MaxLength(1000)]
+        public string? Description { get; set; }
+    }
+
+    public class JobReportResolveDto
+    {
+        [Required]
+        public bool IsResolved { get; set; }
+    }
+
+    public class JobReportSummaryDto
+    {
+        public int JobReportId { get; set; }
+        public int JobId { get; set; }
+        public string JobTitle { get; set; } = string.Empty;
+        public string JobCompany { get; set; } = string.Empty;
+        public string ReporterEmail { get; set; } = string.Empty;
+        public string ReporterName { get; set; } = string.Empty;
+        public string Reason { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public bool IsResolved { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? ResolvedAt { get; set; }
     }
 }
